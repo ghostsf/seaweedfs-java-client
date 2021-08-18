@@ -53,8 +53,7 @@ public class FileSource implements InitializingBean, DisposableBean {
                         this.connectionProperties.getLookupVolumeCacheEntries(),
                         this.connectionProperties.isEnableFileStreamCache(),
                         this.connectionProperties.getFileStreamCacheEntries(),
-                        this.connectionProperties.getFileStreamCacheSize(),
-                        this.connectionProperties.getFileStreamCacheStorage());
+                        this.connectionProperties.getFileStreamCacheSize());
             }
             this.connection.startup();
             this.startup = true;

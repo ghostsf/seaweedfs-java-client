@@ -1,8 +1,12 @@
 package net.anumbrella.seaweedfs.core.http;
 
-import org.apache.http.Header;
+//import org.apache.http.Header;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
+
+import okhttp3.internal.http2.Header;
+
 
 public class HeaderResponse {
     private Header[] headers;
@@ -26,7 +30,7 @@ public class HeaderResponse {
 
     public Header getLastHeader(String name) {
         for (int index = headers.length - 1; index > -1; index--) {
-            if (headers[index].getName().equals(name)){
+            if (headers[index].name.string(Charset.forName("utf-8")).equals(name)){
                 return headers[index];
             }
         }
@@ -35,7 +39,7 @@ public class HeaderResponse {
 
     public Header getFirstHeader(String name) {
         for (int index = 0; index < headers.length; index++) {
-            if (headers[index].getName().equals(name)){
+            if (headers[index].name.string(Charset.forName("utf-8")).equals(name)){
                 return headers[index];
             }
         }

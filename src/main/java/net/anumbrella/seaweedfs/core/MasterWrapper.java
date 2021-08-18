@@ -12,22 +12,28 @@ import net.anumbrella.seaweedfs.util.RequestPathStrategy;
 import net.anumbrella.seaweedfs.util.Utils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.util.CharsetUtils;
+//import org.apache.http.HttpEntity;
+//import org.apache.http.HttpStatus;
+//import org.apache.http.client.methods.HttpDelete;
+//import org.apache.http.client.methods.HttpGet;
+//import org.apache.http.client.methods.HttpPost;
+//import org.apache.http.entity.ContentType;
+//import org.apache.http.entity.mime.HttpMultipartMode;
+//import org.apache.http.entity.mime.MultipartEntityBuilder;
+//import org.apache.http.message.BasicHeader;
+//import org.apache.http.util.CharsetUtils;
 import org.ehcache.Cache;
 import org.ehcache.CacheManager;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 
 import static net.anumbrella.seaweedfs.core.Connection.LOOKUP_VOLUME_CACHE_ALIAS;
 
@@ -70,7 +76,8 @@ public class MasterWrapper {
         params.setDataCenter(getOneAvailableDataCenter(dataCenterList).getId());
         log.info(" datacenter " + getOneAvailableDataCenter(dataCenterList) + " url " + params.toUrlParams());
         final String url = connection.getLeaderUrl() + RequestPathStrategy.assignFileKey + params.toUrlParams();
-        HttpGet request = new HttpGet(url);
+//        HttpGet request = new HttpGet(url);
+        Request request = new Request.Builder().url(url).get().build();
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         return objectMapper.readValue(jsonResponse.json, AssignFileKeyResult.class);
     }
@@ -103,7 +110,8 @@ public class MasterWrapper {
     public GarbageResult forceGarbageCollection(ForceGarbageCollectionParams params) throws IOException {
         checkConnection();
         final String url = connection.getLeaderUrl() + RequestPathStrategy.forceGarbageCollection + params.toUrlParams();
-        HttpGet request = new HttpGet(url);
+//        HttpGet request = new HttpGet(url);
+        Request request = new Request.Builder().url(url).get().build();
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         String json = jsonResponse.json;
         return Utils.convertJsonToEntity(json, GarbageResult.class);
@@ -120,7 +128,8 @@ public class MasterWrapper {
     public PreAllocateVolumesResult preAllocateVolumes(PreAllocateVolumesParams params) throws IOException {
         checkConnection();
         final String url = connection.getLeaderUrl() + RequestPathStrategy.preAllocateVolumes + params.toUrlParams();
-        HttpGet request = new HttpGet(url);
+//        HttpGet request = new HttpGet(url);
+        Request request = new Request.Builder().url(url).get().build();
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         return objectMapper.readValue(jsonResponse.json, PreAllocateVolumesResult.class);
     }
@@ -148,28 +157,30 @@ public class MasterWrapper {
         }
     }
 
+
     /**
      * 不用请求fid，直接上传文件接口
      * @param url submit接口地址
      * @param fileName 文件名称
-     * @param stream 文件流
+     * @param file 文件
      * @return 返回一个SubmitFileResult对象
      * @throws IOException HTTP请求可能出现的IOException
      */
-    public SubmitFileResult uploadFileDirectly(String url, String fileName, InputStream stream) throws IOException {
-        HttpPost request = new HttpPost(url + RequestPathStrategy.submitFile);
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+    public SubmitFileResult uploadFileDirectly(String url, String fileName, File file) throws IOException {
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("upload", fileName,
+                        RequestBody.create(MediaType.parse("multipart/form-data"), file))
+                .build();
+        Request request = new Request.Builder()
+                .url(url + RequestPathStrategy.submitFile)
+                .header("Accept-Language", "zh-cn")
+                .post(requestBody)
+                .build();
 
-        request.setHeader(new BasicHeader("Accept-Language", "zh-cn"));
-
-        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        builder.setCharset(CharsetUtils.get("UTF-8"));
-        builder.addBinaryBody("upload", stream, ContentType.DEFAULT_BINARY, fileName);
-        HttpEntity entity = builder.build();
-        request.setEntity(entity);
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         if (jsonResponse == null) {
-            jsonResponse = new JsonResponse("{\"name\":\"" + fileName + "\",\"size\":0}", HttpStatus.SC_OK);
+            jsonResponse = new JsonResponse("{\"name\":\"" + fileName + "\",\"size\":0}", 200);
         }
         Utils.convertResponseStatusToException(jsonResponse.statusCode, url, false, false, false, false);
         String response = jsonResponse.json;
@@ -178,7 +189,8 @@ public class MasterWrapper {
 
     public int deleteCollection(String url, String collection) throws IOException {
         String deleteUrl = url + RequestPathStrategy.deleteCollection + "?collection=" + collection;
-        HttpDelete request = new HttpDelete(deleteUrl);
+//        HttpDelete request = new HttpDelete(deleteUrl);
+        Request request = new Request.Builder().url(deleteUrl).delete().build();
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         return jsonResponse.statusCode;
 
@@ -194,7 +206,8 @@ public class MasterWrapper {
     private LookupVolumeResult fetchLookupVolumeResult(LookupVolumeParams params) throws IOException {
         checkConnection();
         final String url = connection.getLeaderUrl() + RequestPathStrategy.lookupVolume + params.toUrlParams();
-        HttpGet request = new HttpGet(url);
+//        HttpGet request = new HttpGet(url);
+        Request request = new Request.Builder().url(url).get().build();
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
         return objectMapper.readValue(jsonResponse.json, LookupVolumeResult.class);
     }

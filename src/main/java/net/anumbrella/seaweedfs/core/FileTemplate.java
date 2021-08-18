@@ -7,12 +7,12 @@ import net.anumbrella.seaweedfs.core.http.StreamResponse;
 import net.anumbrella.seaweedfs.exception.SeaweedfsException;
 import net.anumbrella.seaweedfs.exception.SeaweedfsFileDeleteException;
 import net.anumbrella.seaweedfs.exception.SeaweedfsFileNotFoundException;
-import org.apache.http.entity.ContentType;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -59,12 +59,12 @@ public class FileTemplate implements InitializingBean, DisposableBean {
      * 通过Master的上传接口，上传文件到SeaweedFS
      *
      * @param fileName 文件名
-     * @param stream   文件应以InputStream的形式传入该接口
+     * @param file   需要上传的文件
      * @return SeaweedFS会在上传文件成功后返回一段信息，详情见{@link FileHandleStatus}
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    public FileHandleStatus saveFileByStream(String fileName, InputStream stream) throws IOException {
-        return saveFileByStream(fileName, stream, ContentType.DEFAULT_BINARY);
+    public FileHandleStatus saveFileByStream(String fileName, File file) throws IOException {
+        return saveFileByStream(fileName, file, ContentType.DEFAULT_BINARY);
     }
 
 
@@ -72,12 +72,11 @@ public class FileTemplate implements InitializingBean, DisposableBean {
      * Save a file.
      *
      * @param fileName    文件名
-     * @param stream      文件应以InputStream的形式传入该接口
-     * @param contentType 文件内容类型
+     * @param file      需要上传的文件
      * @return {@link FileHandleStatus}
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    private FileHandleStatus saveFileByStream(String fileName, InputStream stream, ContentType contentType)
+    private FileHandleStatus saveFileByStream(String fileName, File file, ContentType contentType)
             throws IOException {
         // Assign file key
         final AssignFileKeyResult assignFileKeyResult =
@@ -94,36 +93,34 @@ public class FileTemplate implements InitializingBean, DisposableBean {
                 volumeWrapper.uploadFile(
                         uploadUrl,
                         assignFileKeyResult.getFid(),
-                        fileName, stream,
+                        fileName, file,
                         timeToLive, contentType), uploadUrl);
     }
 
     /**
      * Save files by stream map.
      *
-     * @param streamMap Map of file name and file stream.
+     * @param fileMap Map of file name and file stream.
      * @return Files status.
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    public LinkedHashMap<String, FileHandleStatus> saveFilesByStreamMap(LinkedHashMap<String, InputStream> streamMap)
+    public LinkedHashMap<String, FileHandleStatus> saveFilesByStreamMap(LinkedHashMap<String, File> fileMap)
             throws IOException {
-        return saveFilesByStreamMap(streamMap, ContentType.DEFAULT_BINARY);
+        return saveFilesByStreamMap(fileMap, ContentType.DEFAULT_BINARY);
     }
 
     /**
      * Save files by stream map.
      *
-     * @param streamMap   Map of file name and file stream.
-     * @param contentType File content type.
+     * @param fileMap   Map of file name and file stream.
      * @return Files status.
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    public LinkedHashMap<String, FileHandleStatus> saveFilesByStreamMap(LinkedHashMap<String, InputStream> streamMap,
-                                                                        ContentType contentType) throws IOException {
+    public LinkedHashMap<String, FileHandleStatus> saveFilesByStreamMap(LinkedHashMap<String, File> fileMap, ContentType contentType) throws IOException {
         // Assign file key
         final AssignFileKeyParams params = new AssignFileKeyParams(
                 assignFileKeyParams.getReplication(),
-                streamMap.size(),
+                fileMap.size(),
                 assignFileKeyParams.getDataCenter(),
                 assignFileKeyParams.getTtl(),
                 assignFileKeyParams.getCollection()
@@ -140,14 +137,14 @@ public class FileTemplate implements InitializingBean, DisposableBean {
         // Upload file
         LinkedHashMap<String, FileHandleStatus> resultMap = new LinkedHashMap<>();
         int index = 0;
-        for (String fileName : streamMap.keySet()) {
+        for (String fileName : fileMap.keySet()) {
             if (index == 0) {
                 resultMap.put(fileName, new FileHandleStatus(assignFileKeyResult.getFid(),
                         volumeWrapper.uploadFile(
                                 uploadUrl,
                                 assignFileKeyResult.getFid(),
                                 fileName,
-                                streamMap.get(fileName),
+                                fileMap.get(fileName),
                                 timeToLive,
                                 contentType)));
             } else {
@@ -156,7 +153,7 @@ public class FileTemplate implements InitializingBean, DisposableBean {
                                 uploadUrl,
                                 assignFileKeyResult.getFid() + "_" + index,
                                 fileName,
-                                streamMap.get(fileName),
+                                fileMap.get(fileName),
                                 timeToLive,
                                 contentType)));
             }
@@ -199,13 +196,13 @@ public class FileTemplate implements InitializingBean, DisposableBean {
      *
      * @param fileId   File id whatever it is not exist.
      * @param fileName File name.
-     * @param stream   File stream.
+     * @param file   File stream.
      * @return Files status.
      * @throws IOException Http connection is fail or server response within some error message.
      */
     public FileHandleStatus updateFileByStream(String fileId, String fileName,
-                                               InputStream stream) throws IOException {
-        return updateFileByStream(fileId, fileName, stream, ContentType.DEFAULT_BINARY);
+                                               File file) throws IOException {
+        return updateFileByStream(fileId, fileName, file, ContentType.DEFAULT_BINARY);
     }
 
 
@@ -214,32 +211,30 @@ public class FileTemplate implements InitializingBean, DisposableBean {
      *
      * @param fileId      File id whatever it is not exist.
      * @param fileName    File name.
-     * @param stream      File stream.
-     * @param contentType File content type.
+     * @param file      File.
      * @return Files status.
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    public FileHandleStatus updateFileByStream(String fileId, String fileName, InputStream stream,
-                                               ContentType contentType) throws IOException {
+    public FileHandleStatus updateFileByStream(String fileId, String fileName, File file, ContentType contentType) throws IOException {
         final String targetUrl = getTargetUrl(fileId);
 
         if (!volumeWrapper.checkFileExist(targetUrl, fileId)) {
             throw new SeaweedfsFileNotFoundException("file is not exist");
         }
         return new FileHandleStatus(fileId,
-                volumeWrapper.uploadFile(targetUrl, fileId, fileName, stream, timeToLive, contentType));
+                volumeWrapper.uploadFile(targetUrl, fileId, fileName, file, timeToLive, contentType));
     }
 
     /**
      * 通过Filer接口上传文件
      * @param fileName 文件名
-     * @param inputStream 文件应该以InputStream形式被传入
+     * @param file 需要上传的文件
      * @param url filer的URL
      * @return {@link FileHandleStatus}
      * @throws IOException Http connection is fail or server response within some error message.
      */
-    public FileHandleStatus saveFileByFiler(String fileName, InputStream inputStream, String url) throws IOException {
-        return new FileHandleStatus(filerWrapper.uploadFile(url, fileName, inputStream, ContentType.DEFAULT_BINARY));
+    public FileHandleStatus saveFileByFiler(String fileName, File file, String url) throws IOException {
+        return new FileHandleStatus(filerWrapper.uploadFile(url, fileName, file, ContentType.DEFAULT_BINARY));
     }
 
     /**
@@ -278,14 +273,14 @@ public class FileTemplate implements InitializingBean, DisposableBean {
         HeaderResponse headerResponse = volumeWrapper.getFileStatusHeader(targetUrl, fileId);
         try {
             return new FileHandleStatus(fileId,
-                    headerDateFormat.parse(headerResponse.getLastHeader("Last-Modified").getValue()).getTime(),
-                    headerResponse.getLastHeader("Content-Disposition").getValue()
-                            .substring(10, headerResponse.getLastHeader("Content-Disposition").getValue().length() - 1),
-                    headerResponse.getLastHeader("Content-Type").getValue(),
-                    Long.parseLong(headerResponse.getLastHeader("Content-Length").getValue()));
+                    headerDateFormat.parse(headerResponse.getLastHeader("Last-Modified").value.string(Charset.forName("utf-8"))).getTime(),
+                    headerResponse.getLastHeader("Content-Disposition").value.string(Charset.forName("utf-8"))
+                            .substring(10, headerResponse.getLastHeader("Content-Disposition").value.string(Charset.forName("utf-8")).length() - 1),
+                    headerResponse.getLastHeader("Content-Type").value.string(Charset.forName("utf-8")),
+                    Long.parseLong(headerResponse.getLastHeader("Content-Length").value.string(Charset.forName("utf-8"))));
         } catch (ParseException e) {
             throw new SeaweedfsException("Could not parse last modified time [" +
-                    headerResponse.getLastHeader("Last-Modified").getValue() + "] to long value");
+                    headerResponse.getLastHeader("Last-Modified").value.string(Charset.forName("utf-8")) + "] to long value");
         }
     }
 

@@ -40,7 +40,6 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jackson.version>2.10.3</jackson.version>
-    <httpclient.version>4.5.10</httpclient.version>
     <ehcache.version>3.1.1</ehcache.version>
     <spring.version>4.3.1.RELEASE</spring.version>
     <junit.version>4.11</junit.version>
@@ -69,21 +68,6 @@
       <version>${jackson.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <version>${httpclient.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpmime</artifactId>
-      <version>${httpclient.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient-cache</artifactId>
-      <version>${httpclient.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.ehcache</groupId>
       <artifactId>ehcache</artifactId>
       <version>3.8.1</version>
@@ -109,6 +93,13 @@
       <artifactId>guava</artifactId>
       <version>28.2-jre</version>
     </dependency>
+
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>3.14.2</version>
+    </dependency>
+
 
   </dependencies>
   <build>

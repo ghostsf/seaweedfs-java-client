@@ -1,6 +1,7 @@
 package net.anumbrella.seaweedfs.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import net.anumbrella.seaweedfs.core.content.ForceGarbageCollectionParams;
 import net.anumbrella.seaweedfs.core.content.LookupVolumeResult;
 import net.anumbrella.seaweedfs.core.content.PreAllocateVolumesParams;
@@ -11,23 +12,24 @@ import net.anumbrella.seaweedfs.core.topology.*;
 import net.anumbrella.seaweedfs.exception.SeaweedfsException;
 import net.anumbrella.seaweedfs.util.ConnectionUtil;
 import net.anumbrella.seaweedfs.util.RequestPathStrategy;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.cache.HttpCacheStorage;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.config.SocketConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.client.cache.CacheConfig;
-import org.apache.http.impl.client.cache.CachingHttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.util.EntityUtils;
+//import org.apache.http.HttpEntity;
+//import org.apache.http.client.cache.HttpCacheStorage;
+//import org.apache.http.client.config.RequestConfig;
+//import org.apache.http.client.methods.CloseableHttpResponse;
+//import org.apache.http.client.methods.HttpGet;
+//import org.apache.http.client.methods.HttpHead;
+//import org.apache.http.client.methods.HttpRequestBase;
+//import org.apache.http.client.protocol.HttpClientContext;
+//import org.apache.http.config.SocketConfig;
+//import org.apache.http.impl.client.CloseableHttpClient;
+//import org.apache.http.impl.client.HttpClients;
+//import org.apache.http.impl.client.cache.CacheConfig;
+//import org.apache.http.impl.client.cache.CachingHttpClients;
+//import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+//import org.apache.http.util.EntityUtils;
 import org.ehcache.CacheManager;
 import org.ehcache.config.builders.CacheConfigurationBuilder;
 import org.ehcache.config.builders.CacheManagerBuilder;
@@ -40,6 +42,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import okhttp3.Call;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okhttp3.internal.http2.Header;
 
 public class Connection {
 
@@ -54,7 +63,7 @@ public class Connection {
     private boolean enableFileStreamCache;
     private int fileStreamCacheEntries;
     private long fileStreamCacheSize;
-    private HttpCacheStorage fileStreamCacheStorage;
+    //    private HttpCacheStorage fileStreamCacheStorage;
     private boolean enableLookupVolumeCache;
     private long lookupVolumeCacheExpiry;
     private int lookupVolumeCacheEntries;
@@ -63,15 +72,39 @@ public class Connection {
     private SystemTopologyStatus systemTopologyStatus;
     private PollClusterStatusThread pollClusterStatusThread;
     private ObjectMapper objectMapper = new ObjectMapper();
-    private PoolingHttpClientConnectionManager clientConnectionManager;
+    //    private PoolingHttpClientConnectionManager clientConnectionManager;
     private IdleConnectionMonitorThread idleConnectionMonitorThread;
-    private CloseableHttpClient httpClient;
+    private OkHttpClient httpClient;
     private CacheManager cacheManager = null;
 
+//    public Connection(String leaderUrl, int connectionTimeout, long statusExpiry, long idleConnectionExpiry,
+//                      int maxConnection, int maxConnectionsPreRoute, boolean enableLookupVolumeCache,
+//                      long lookupVolumeCacheExpiry, int lookupVolumeCacheEntries, boolean enableFileStreamCache,
+//                      int fileStreamCacheEntries, long fileStreamCacheSize, HttpCacheStorage fileStreamCacheStorage) {
+//        this.leaderUrl = leaderUrl;
+//        this.statusExpiry = statusExpiry;
+//        this.connectionTimeout = connectionTimeout;
+//        this.idleConnectionExpiry = idleConnectionExpiry;
+//        this.enableLookupVolumeCache = enableLookupVolumeCache;
+//        this.lookupVolumeCacheExpiry = lookupVolumeCacheExpiry;
+//        this.lookupVolumeCacheEntries = lookupVolumeCacheEntries;
+//        this.pollClusterStatusThread = new PollClusterStatusThread();
+//        this.idleConnectionMonitorThread = new IdleConnectionMonitorThread();
+////        this.clientConnectionManager = new PoolingHttpClientConnectionManager();
+////        this.clientConnectionManager.setMaxTotal(maxConnection);
+////        this.clientConnectionManager.setDefaultMaxPerRoute(maxConnectionsPreRoute);
+//        this.enableFileStreamCache = enableFileStreamCache;
+//        this.fileStreamCacheEntries = fileStreamCacheEntries;
+//        this.fileStreamCacheSize = fileStreamCacheSize;
+////        this.fileStreamCacheStorage = fileStreamCacheStorage;
+//    }
+
+
+
     public Connection(String leaderUrl, int connectionTimeout, long statusExpiry, long idleConnectionExpiry,
-            int maxConnection, int maxConnectionsPreRoute, boolean enableLookupVolumeCache,
-            long lookupVolumeCacheExpiry, int lookupVolumeCacheEntries, boolean enableFileStreamCache,
-            int fileStreamCacheEntries, long fileStreamCacheSize, HttpCacheStorage fileStreamCacheStorage) {
+                      int maxConnection, int maxConnectionsPreRoute, boolean enableLookupVolumeCache,
+                      long lookupVolumeCacheExpiry, int lookupVolumeCacheEntries, boolean enableFileStreamCache,
+                      int fileStreamCacheEntries, long fileStreamCacheSize) {
         this.leaderUrl = leaderUrl;
         this.statusExpiry = statusExpiry;
         this.connectionTimeout = connectionTimeout;
@@ -81,44 +114,49 @@ public class Connection {
         this.lookupVolumeCacheEntries = lookupVolumeCacheEntries;
         this.pollClusterStatusThread = new PollClusterStatusThread();
         this.idleConnectionMonitorThread = new IdleConnectionMonitorThread();
-        this.clientConnectionManager = new PoolingHttpClientConnectionManager();
-        this.clientConnectionManager.setMaxTotal(maxConnection);
-        this.clientConnectionManager.setDefaultMaxPerRoute(maxConnectionsPreRoute);
+//        this.clientConnectionManager = new PoolingHttpClientConnectionManager();
+//        this.clientConnectionManager.setMaxTotal(maxConnection);
+//        this.clientConnectionManager.setDefaultMaxPerRoute(maxConnectionsPreRoute);
         this.enableFileStreamCache = enableFileStreamCache;
         this.fileStreamCacheEntries = fileStreamCacheEntries;
         this.fileStreamCacheSize = fileStreamCacheSize;
-        this.fileStreamCacheStorage = fileStreamCacheStorage;
+//        this.fileStreamCacheStorage = fileStreamCacheStorage;
     }
 
     /**
      * Start up polls for core leader.
      */
     public void startup() {
-        final RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(this.connectionTimeout)
-                .setSocketTimeout(connectionTimeout)
-                // 一个connection可以有多个request
-                .setConnectionRequestTimeout(connectionTimeout).build();
-        // Create socket configuration
-        SocketConfig socketConfig = SocketConfig.custom().setTcpNoDelay(true).setSoKeepAlive(true)
-                .setSoTimeout(connectionTimeout).build();
-        clientConnectionManager.setDefaultSocketConfig(socketConfig);
-        if (this.enableFileStreamCache) {
-            if (this.fileStreamCacheStorage == null) {
-                final CacheConfig cacheConfig = CacheConfig.custom().setMaxCacheEntries(this.fileStreamCacheEntries)
-                        .setMaxObjectSize(this.fileStreamCacheSize).setHeuristicCachingEnabled(true)
-                        .setHeuristicCoefficient(0.8f).build();
-                this.httpClient = CachingHttpClients.custom().setCacheConfig(cacheConfig)
-                        .setConnectionManager(this.clientConnectionManager).setDefaultRequestConfig(requestConfig)
-                        .build();
-            } else {
-                this.httpClient = CachingHttpClients.custom().setHttpCacheStorage(this.fileStreamCacheStorage)
-                        .setConnectionManager(this.clientConnectionManager).setDefaultRequestConfig(requestConfig)
-                        .build();
-            }
-        } else {
-            this.httpClient = HttpClients.custom().setConnectionManager(this.clientConnectionManager)
-                    .setDefaultRequestConfig(requestConfig).build();
-        }
+//        final RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(this.connectionTimeout)
+//                .setSocketTimeout(connectionTimeout)
+//                // 一个connection可以有多个request
+//                .setConnectionRequestTimeout(connectionTimeout).build();
+//        // Create socket configuration
+//        SocketConfig socketConfig = SocketConfig.custom().setTcpNoDelay(true).setSoKeepAlive(true)
+//                .setSoTimeout(connectionTimeout).build();
+//        clientConnectionManager.setDefaultSocketConfig(socketConfig);
+//        if (this.enableFileStreamCache) {
+//            if (this.fileStreamCacheStorage == null) {
+//                final CacheConfig cacheConfig = CacheConfig.custom().setMaxCacheEntries(this.fileStreamCacheEntries)
+//                        .setMaxObjectSize(this.fileStreamCacheSize).setHeuristicCachingEnabled(true)
+//                        .setHeuristicCoefficient(0.8f).build();
+//                this.httpClient = CachingHttpClients.custom().setCacheConfig(cacheConfig)
+//                        .setConnectionManager(this.clientConnectionManager).setDefaultRequestConfig(requestConfig)
+//                        .build();
+//            } else {
+//                this.httpClient = CachingHttpClients.custom().setHttpCacheStorage(this.fileStreamCacheStorage)
+//                        .setConnectionManager(this.clientConnectionManager).setDefaultRequestConfig(requestConfig)
+//                        .build();
+//            }
+//        } else {
+//            this.httpClient = HttpClients.custom().setConnectionManager(this.clientConnectionManager)
+//                    .setDefaultRequestConfig(requestConfig).build();
+//        }
+
+        this.httpClient = new OkHttpClient()
+                .newBuilder()
+                .build();
+
         initCache();
         this.pollClusterStatusThread.updateSystemStatus(true, true);
         this.pollClusterStatusThread.start();
@@ -133,7 +171,7 @@ public class Connection {
         if (enableLookupVolumeCache) {
             CacheManagerBuilder builder = CacheManagerBuilder.newCacheManagerBuilder();
             this.cacheManager = builder.build(true);
-            if (enableLookupVolumeCache)
+            if(enableLookupVolumeCache){
                 this.cacheManager.createCache(LOOKUP_VOLUME_CACHE_ALIAS,
                         CacheConfigurationBuilder
                                 .newCacheConfigurationBuilder(Long.class, LookupVolumeResult.class,
@@ -141,8 +179,20 @@ public class Connection {
                                 .withExpiry(ExpiryPolicyBuilder
                                         .timeToLiveExpiration(Duration.ofSeconds(this.lookupVolumeCacheExpiry)))
                                 .build());
+            }
         }
     }
+
+//    private Duration create(long seconds) {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            return Duration.ofSeconds(seconds);
+//        } else {
+//            if ((seconds) == 0) {
+//                return Duration.ZERO;
+//            }
+//            return new Duration(seconds, 0);
+//        }
+//    }
 
     /**
      * Shutdown polls for core leader.
@@ -238,18 +288,15 @@ public class Connection {
                 connectionClose = false;
             } catch (IOException e) {
                 connectionClose = true;
-                log.error("unable connect to the target seaweedfs core [" + leaderUrl + "]");
             }
 
             try {
                 if (connectionClose) {
                     log.info("lookup seaweedfs core leader by peers");
                     if (systemClusterStatus == null || systemClusterStatus.getPeers().size() == 0) {
-                        log.error("cloud not found the seaweedfs core peers");
                     } else {
                         String url = findLeaderUriByPeers(systemClusterStatus.getPeers());
                         if (url != null) {
-                            log.error("seaweedfs core cluster is failover");
                             fetchSystemStatus(url);
                             connectionClose = false;
                         } else {
@@ -261,7 +308,6 @@ public class Connection {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                log.error("unable connect to the seaweedfs core leader");
             }
 
             if (immediate && !disposable) {
@@ -277,9 +323,7 @@ public class Connection {
             systemTopologyStatus = fetchSystemTopologyStatus(url);
             if (!leaderUrl.equals(systemClusterStatus.getLeader().getUrl())) {
                 leaderUrl = (systemClusterStatus.getLeader().getUrl());
-                log.info("seaweedfs core leader is change to [" + leaderUrl + "]");
             }
-            log.debug("seaweedfs core leader is found [" + leaderUrl + "]");
         }
 
         private void shutdown() {
@@ -303,7 +347,8 @@ public class Connection {
         else {
             String result;
             for (MasterStatus item : peers) {
-                final HttpGet request = new HttpGet(item.getUrl() + RequestPathStrategy.checkClusterStatus);
+                final Request request = new Request.Builder().url(item.getUrl() + RequestPathStrategy.checkClusterStatus).get().build();
+//                final HttpGet request = new HttpGet(item.getUrl() + RequestPathStrategy.checkClusterStatus);
                 Map responseMap;
                 try {
                     final JsonResponse jsonResponse = fetchJsonResultByRequest(request);
@@ -314,7 +359,7 @@ public class Connection {
                 if (responseMap.get("Leader") != null) {
                     result = ConnectionUtil.convertUrlWithScheme((String) responseMap.get("Leader"));
 
-                    if (ConnectionUtil.checkUriAlive(this.httpClient, result))
+                    if (ConnectionUtil.checkUriAlive(httpClient, result))
                         return result;
                 }
             }
@@ -332,7 +377,8 @@ public class Connection {
     private SystemClusterStatus fetchSystemClusterStatus(String masterUrl) throws IOException {
         MasterStatus leader;
         ArrayList<MasterStatus> peers;
-        final HttpGet request = new HttpGet(masterUrl + RequestPathStrategy.checkClusterStatus);
+//        final HttpGet request = new HttpGet(masterUrl + RequestPathStrategy.checkClusterStatus);
+        final Request request = new Request.Builder().url(masterUrl + RequestPathStrategy.checkClusterStatus).get().build();
         final JsonResponse jsonResponse = fetchJsonResultByRequest(request);
         Map map = objectMapper.readValue(jsonResponse.json, Map.class);
 
@@ -384,7 +430,8 @@ public class Connection {
      */
     @SuppressWarnings("unchecked")
     private SystemTopologyStatus fetchSystemTopologyStatus(String masterUrl) throws IOException {
-        final HttpGet request = new HttpGet(masterUrl + RequestPathStrategy.checkTopologyStatus);
+//        final HttpGet request = new HttpGet(masterUrl + RequestPathStrategy.checkTopologyStatus);
+        final Request request = new Request.Builder().url(masterUrl + RequestPathStrategy.checkTopologyStatus).get().build();
         final JsonResponse jsonResponse = fetchJsonResultByRequest(request);
         Map map = objectMapper.readValue(jsonResponse.json, Map.class);
 
@@ -469,31 +516,51 @@ public class Connection {
      * @throws IOException Http connection is fail or server response within some
      *                     error message.
      */
-    public JsonResponse fetchJsonResultByRequest(HttpRequestBase request) throws IOException {
-        CloseableHttpResponse response = null;
+    public JsonResponse fetchJsonResultByRequest(Request request) throws IOException {
+//        CloseableHttpResponse response = null;
+        Response response = null;
+        Call call = null;
         JsonResponse jsonResponse = null;
 
         try {
-            response = httpClient.execute(request, HttpClientContext.create());
-            HttpEntity entity = response.getEntity();
-            if (entity != null) {
-                jsonResponse = new JsonResponse(EntityUtils.toString(entity), response.getStatusLine().getStatusCode());
-                EntityUtils.consume(entity);
+            call = this.httpClient.newCall(request);
+            response = call.execute();
+
+            ResponseBody body = response.body();
+            if (body != null) {
+                jsonResponse = new JsonResponse(body.string(), response.code());
             } else {
-                //SeaweedFS在删除的时候，经常会只返回一个204，这里处理204代码
-                jsonResponse = new JsonResponse("", response.getStatusLine().getStatusCode());
+                jsonResponse = new JsonResponse("", response.code());
             }
+
+//            response = httpClient.execute(request, HttpClientContext.create());
+//            HttpEntity entity = response.getEntity();
+//            if (entity != null) {
+//                jsonResponse = new JsonResponse(EntityUtils.toString(entity), response.getStatusLine().getStatusCode());
+//                EntityUtils.consume(entity);
+//            } else {
+//                //SeaweedFS在删除的时候，经常会只返回一个204，这里处理204代码
+//                jsonResponse = new JsonResponse("", response.getStatusLine().getStatusCode());
+//            }
         } catch (Exception e) {
-            log.error("request url " + request.getURI(), e);
+            log.error("request url " + request.url(), e);
         } finally {
+//            if (call != null) {
+//                try {
+//                    call.cancel();
+//                } catch (Exception e) {
+//                    log.error("close call url " + request.url(), e);
+//                }
+//            }
             if (response != null) {
                 try {
                     response.close();
-                } catch (IOException e) {
-                    log.error("close request url " + request.getURI(), e);
+                } catch (Exception e) {
+                    log.error("close request url " + request.url(), e);
                 }
             }
-            request.releaseConnection();
+//            request.releaseConnection();
+            request = null;
         }
 
         if (jsonResponse != null && jsonResponse.json.contains("\"error\":\"")) {
@@ -515,21 +582,30 @@ public class Connection {
      * @throws IOException Http connection is fail or server response within some
      *                     error message.
      */
-    public int fetchStatusCodeByRequest(HttpHead request) throws IOException {
-        CloseableHttpResponse response = null;
+    public int fetchStatusCodeByRequest(Request request) throws IOException {
+//        CloseableHttpResponse response = null;
+        Call call = null;
+        Response response = null;
         int statusCode;
         try {
-            response = httpClient.execute(request, HttpClientContext.create());
-            statusCode = response.getStatusLine().getStatusCode();
+            call = httpClient.newCall(request);
+            response = call.execute();
+            statusCode = response.code();
+//            response = httpClient.execute(request, HttpClientContext.create());
+//            statusCode = response.getStatusLine().getStatusCode();
         } finally {
+//            if (call != null) {
+//                call.cancel();
+//            }
             if (response != null) {
                 try {
                     response.close();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-            request.releaseConnection();
+            request = null;
+//            request.releaseConnection();
         }
         return statusCode;
     }
@@ -570,7 +646,7 @@ public class Connection {
      *                     within some error message.
      */
     public void preAllocateVolumes(int sameRackCount, int diffRackCount, int diffDataCenterCount, int count,
-            String dataCenter, String ttl) throws IOException {
+                                   String dataCenter, String ttl) throws IOException {
         MasterWrapper masterWrapper = new MasterWrapper(this);
         masterWrapper.preAllocateVolumes(new PreAllocateVolumesParams(
                 String.valueOf(diffDataCenterCount) + String.valueOf(diffRackCount) + String.valueOf(sameRackCount),
@@ -585,25 +661,37 @@ public class Connection {
      * @throws IOException Http connection is fail or server response within some
      *                     error message.
      */
-    public StreamResponse fetchStreamCacheByRequest(HttpRequestBase request) throws IOException {
-        CloseableHttpResponse response = null;
+    public StreamResponse fetchStreamCacheByRequest(Request request) throws IOException {
+        Call call = null;
+        Response response = null;
+//        CloseableHttpResponse response = null;
         // request.setHeader("Connection", "close");
-        StreamResponse cache;
+        StreamResponse cache = null;
 
         try {
-            response = httpClient.execute(request, HttpClientContext.create());
-            HttpEntity entity = response.getEntity();
-            cache = new StreamResponse(entity.getContent(), response.getStatusLine().getStatusCode());
-            EntityUtils.consume(entity);
+            call = httpClient.newCall(request);
+            response = call.execute();
+            ResponseBody responseBody = response.body();
+            if (responseBody != null) {
+                cache = new StreamResponse(responseBody.byteStream(), response.code());
+            }
+//            response = httpClient.execute(request, HttpClientContext.create());
+//            HttpEntity entity = response.getEntity();
+//            cache = new StreamResponse(entity.getContent(), response.getStatusLine().getStatusCode());
+//            EntityUtils.consume(entity);
         } finally {
+//            if (call != null) {
+//                call.cancel();
+//            }
             if (response != null) {
                 try {
                     response.close();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-            request.releaseConnection();
+            request = null;
+//            request.releaseConnection();
         }
         return cache;
     }
@@ -616,23 +704,33 @@ public class Connection {
      * @throws IOException Http connection is fail or server response within some
      *                     error message.
      */
-    public HeaderResponse fetchHeaderByRequest(HttpHead request) throws IOException {
-        CloseableHttpResponse response = null;
+    public HeaderResponse fetchHeaderByRequest(Request request) throws IOException {
+        Call call = null;
+        Response response = null;
+//        CloseableHttpResponse response = null;
         // request.setHeader("Connection", "close");
         HeaderResponse headerResponse;
 
         try {
-            response = httpClient.execute(request, HttpClientContext.create());
-            headerResponse = new HeaderResponse(response.getAllHeaders(), response.getStatusLine().getStatusCode());
+            call = httpClient.newCall(request);
+            response = call.execute();
+            Header[] myheaders = new Header[response.headers().size()];
+            for (int i = 0; i < response.headers().size(); i++) {
+                myheaders[i] = new Header(response.headers().name(i), response.headers().value(i));
+            }
+            headerResponse = new HeaderResponse(myheaders, response.code());
+//            response = httpClient.execute(request, HttpClientContext.create());
+//            headerResponse = new HeaderResponse(response.getAllHeaders(), response.getStatusLine().getStatusCode());
         } finally {
             if (response != null) {
                 try {
                     response.close();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-            request.releaseConnection();
+            request = null;
+//            request.releaseConnection();
         }
         return headerResponse;
     }
@@ -652,10 +750,10 @@ public class Connection {
                     synchronized (this) {
                         wait(statusExpiry);
                         // Close free connection
-                        clientConnectionManager.closeExpiredConnections();
-                        clientConnectionManager.closeIdleConnections(idleConnectionExpiry, TimeUnit.SECONDS);
-                        log.debug(
-                                "http client pool state [" + clientConnectionManager.getTotalStats().toString() + "]");
+//                        clientConnectionManager.closeExpiredConnections();
+//                        clientConnectionManager.closeIdleConnections(idleConnectionExpiry, TimeUnit.SECONDS);
+//                        log.debug(
+//                                "http client pool state [" + clientConnectionManager.getTotalStats().toString() + "]");
                     }
                 }
             } catch (InterruptedException e) {

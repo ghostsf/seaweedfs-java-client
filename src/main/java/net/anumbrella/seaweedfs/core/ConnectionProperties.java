@@ -1,7 +1,7 @@
 package net.anumbrella.seaweedfs.core;
 
 
-import org.apache.http.client.cache.HttpCacheStorage;
+//import org.apache.http.client.cache.HttpCacheStorage;
 
 public class ConnectionProperties {
     /**
@@ -42,7 +42,7 @@ public class ConnectionProperties {
     private boolean enableFileStreamCache;
     private int fileStreamCacheEntries;
     private long fileStreamCacheSize;
-    private HttpCacheStorage fileStreamCacheStorage;
+//    private HttpCacheStorage fileStreamCacheStorage;
 
     private ConnectionProperties(Builder builder) {
         this.host = builder.host;
@@ -58,7 +58,7 @@ public class ConnectionProperties {
         this.enableFileStreamCache = builder.enableFileStreamCache;
         this.fileStreamCacheEntries = builder.fileStreamCacheEntries;
         this.fileStreamCacheSize = builder.fileStreamCacheSize;
-        this.fileStreamCacheStorage = builder.fileStreamCacheStorage;
+//        this.fileStreamCacheStorage = builder.fileStreamCacheStorage;
     }
 
     public String getHost() {
@@ -113,9 +113,9 @@ public class ConnectionProperties {
         return fileStreamCacheSize;
     }
 
-    public HttpCacheStorage getFileStreamCacheStorage() {
-        return fileStreamCacheStorage;
-    }
+//    public HttpCacheStorage getFileStreamCacheStorage() {
+//        return fileStreamCacheStorage;
+//    }
 
     public static class Builder {
         /**
@@ -156,7 +156,7 @@ public class ConnectionProperties {
         private boolean enableFileStreamCache = true;
         private int fileStreamCacheEntries = 1000;
         private long fileStreamCacheSize = 8192;
-        private HttpCacheStorage fileStreamCacheStorage = null;
+//        private HttpCacheStorage fileStreamCacheStorage = null;
 
         public Builder() {
         }
@@ -226,10 +226,10 @@ public class ConnectionProperties {
             return this;
         }
 
-        public Builder fileStreamCacheStorage(HttpCacheStorage fileStreamCacheStorage) {
-            this.fileStreamCacheStorage = fileStreamCacheStorage;
-            return this;
-        }
+//        public Builder fileStreamCacheStorage(HttpCacheStorage fileStreamCacheStorage) {
+//            this.fileStreamCacheStorage = fileStreamCacheStorage;
+//            return this;
+//        }
 
         public ConnectionProperties build() {
             return new ConnectionProperties(this);
